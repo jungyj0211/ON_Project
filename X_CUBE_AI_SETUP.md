@@ -1,172 +1,110 @@
-# STM32CubeIDE에 X-CUBE-AI 및 ONNX 모델 추가
+# X-CUBE-AI 설정 및 ONNX 모델 적용
 
-### 적용 기준
+### 1. 프로젝트 `.ioc` 파일 실행
 
-- STM32CubeMX: `6.14.1`
-- X-CUBE-AI: `10.2.0`
-- 대상 MCU: `STM32H562RIT6`
-- 모델 형식: 양자화된 `ONNX`
-- 모델 입력: INT8 4개
-- 모델 출력: INT8 4개
-- 네트워크 이름: `network`
+STM32CubeIDE에서 대상 프로젝트의 `.ioc` 파일을 실행한다.
 
-### 1. X-CUBE-AI 설치
+![프로젝트 ioc 파일 실행](./images/00.png)
 
-- STM32CubeIDE에서 프로젝트의 `.ioc` 파일 열기
-- `Help > Manage Embedded Software Packages` 실행
-- STMicroelectronics Software Packs에서 `X-CUBE-AI 10.2.0` 설치
-- 설치 완료 후 `.ioc` 화면 다시 열기
+`.ioc` 파일을 실행하면 STM32CubeMX의 `Pinout & Configuration` 화면이 열린다.
 
-### 2. X-CUBE-AI 컴포넌트 활성화
 
-- `.ioc` 화면에서 `Software Packs > Select Components` 실행
-- `STMicroelectronics.X-CUBE-AI` 선택
-- `Artificial Intelligence` 또는 AI Core 컴포넌트 활성화
-- X-CUBE-AI 설정 화면으로 이동
+### 2. X-CUBE-AI 컴포넌트 설정
 
-### 3. ONNX 네트워크 등록
+왼쪽 `Categories` 메뉴에서 `Middleware and Software Packs`를 선택한 후
+`X-CUBE-AI`를 선택한다.
 
-- X-CUBE-AI 설정 화면에서 네트워크 추가
-- ONNX 모델 파일 선택
-- 네트워크 이름을 `network`로 지정
-- 모델 분석(`Analyze`) 실행
-- 분석 성공 여부 확인
+![X-CUBE-AI 선택](./images/01.png)
 
-현재 프로젝트의 모델 설정:
+X-CUBE-AI가 설치되어 있지 않거나 버전 및 컴포넌트 설정을 확인해야 하는 경우
+`Software Packs > Select Components`에서 X-CUBE-AI 설정을 확인한다.
 
-| 항목 | 설정 |
-|---|---|
-| Model type | ONNX |
-| Network name | `network` |
-| Runtime | STM32Cube.AI MCU runtime |
-| Compression | None |
-| Copy weights to RAM | false |
-| Input allocation | true |
-| Output allocation | true |
-| Custom layer | false |
-| `noOnnxIoTranspose` | false |
 
-### 4. 모델 입출력 확인
+### 3. X-CUBE-AI 버전 및 Application 설정
 
-- 입력 텐서 형식: `S8(INT8)`
-- 입력 크기: `4 bytes`
-- 출력 텐서 형식: `S8(INT8)`
-- 출력 크기: `4 bytes`
-- 입력 및 출력 개수가 현재 코드와 일치하는지 확인
-- 모델이 Float 또는 다른 크기로 표시될 경우 현재 `ai_config.h` 사용 불가
-- 모델 분석 결과가 다를 경우 양자화 파라미터와 추론 코드 재설정 필요
+`Software Packs Component Selector`에서 다음 항목을 확인한다.
 
-### 5. 코드 생성
+![X-CUBE-AI 컴포넌트 설정](./images/02.png)
 
-- `Project Manager`에서 Toolchain을 `STM32CubeIDE`로 선택
-- `Generate Code` 실행
-- 생성 결과 확인
-  - `X-CUBE-AI/App/app_x-cube-ai.c`
-  - `X-CUBE-AI/App/app_x-cube-ai.h`
-  - `X-CUBE-AI/App/network.c`
-  - `X-CUBE-AI/App/network.h`
-  - `X-CUBE-AI/App/network_data.c`
-  - `X-CUBE-AI/App/network_data.h`
-  - `X-CUBE-AI/App/network_data_params.c/.h`
-  - `Middlewares/ST/AI/`
+- X-CUBE-AI Version: `10.2.0`
+- `Core` 체크 여부 확인
+- `Device Application > Application` 선택
+- 설정 완료 후 `OK` 선택
 
-### 6. 모델 실행 래퍼 추가
+본 프로젝트에서는 X-CUBE-AI `10.2.0`을 기준으로 한다.
 
-- 파일: `X-CUBE-AI/App/app_x-cube-ai.h`
-- `USER CODE` 영역에 함수 선언 추가
 
-```c
-int AI_ModelRun(const int8_t input[4], int8_t output[4]);
-```
+### 4. 기존 네트워크 삭제 및 신규 네트워크 추가
 
-- 파일: `X-CUBE-AI/App/app_x-cube-ai.c`
-- `USER CODE` 영역에 모델 실행 함수 추가
+왼쪽 메뉴에서 `X-CUBE-AI`를 선택한다.
 
-```c
-int AI_ModelRun(const int8_t input[4], int8_t output[4])
-{
-    if ((network == AI_HANDLE_NULL) || (input == NULL) || (output == NULL)) {
-        return -1;
-    }
+![X-CUBE-AI 네트워크 추가](./images/03.png)
 
-    memcpy(AI_HANDLE_PTR(ai_input[0].data), input, 4U);
+기존에 등록된 네트워크가 있는 경우 다음 순서로 삭제한다.
 
-    if (ai_network_run(network, ai_input, ai_output) != 1) {
-        return -2;
-    }
+1. `Main` 이외의 기존 Network 탭 선택
+2. `Delete network` 선택
+3. 기존 Network가 삭제되어 `Main`만 남아 있는지 확인
+4. `Add network` 선택하여 새로운 네트워크 추가
 
-    memcpy(output, AI_HANDLE_PTR(ai_output[0].data), 4U);
-    return 0;
-}
-```
+신규 네트워크의 이름은 `network`를 사용한다.
 
-- `memcpy()` 사용을 위한 `<string.h>` 포함 확인
-- 함수는 반드시 CubeMX 코드 생성 시 유지되는 `USER CODE` 영역에 작성
+> 기존 네트워크가 없는 경우 삭제 과정 없이 바로 `Add network`를 선택한다.
 
-### 7. AI 모듈 추가
 
-- 다음 파일을 대상 프로젝트의 `Core/Inc`, `Core/Src`에 추가
-  - `ai_config.h`
-  - `ai_minmax.h/.c`
-  - `ai_inference.h/.c`
-  - `ai_runtime.h/.c`
-  - `rul.h/.c`
-- 프로젝트 Include Path 확인
-  - `Core/Inc`
-  - `X-CUBE-AI/App`
-  - `Middlewares/ST/AI/Inc`
-- X-CUBE-AI 런타임 라이브러리 링크 여부 확인
+### 5. ONNX 모델 파일 확인
 
-### 8. main.c 연결
+프로젝트 Root 경로에 추론에 사용할 `ai_model.onnx` 파일이 포함되어 있는지 확인한다.
 
-- 헤더 추가
+![ONNX 모델 파일 위치](./images/05.png)
 
-```c
-#include "ai_runtime.h"
-#include "app_x-cube-ai.h"
-```
+본 프로젝트에서는 다음 모델 파일을 사용한다.
 
-- 주변장치 초기화 후 AI 네트워크 및 Runtime 초기화
+`ai_model.onnx`
 
-```c
-MX_X_CUBE_AI_Init();
-AI_Runtime_Init();
-```
 
-- 센싱 완료 후 입력값 구성 및 Runtime 호출
+### 6. ONNX 모델 등록 및 Analyze
 
-```c
-AI_RuntimeInput input = {
-    .model_input = {
-        raw_freq_khz,
-        adc_pk,
-        output_voltage_v,
-        output_current_a
-    },
-    .measured_freq_khz = raw_freq_khz,
-    .measured_adc_pk = adc_pk,
-    .measured_voltage_v = output_voltage_v,
-    .measured_current_a = output_current_a,
-    .temperature_c = temperature_c,
-    .temperature_valid = temperature_valid
-};
+추가한 Network에서 `Model inputs`를 다음과 같이 설정한다.
 
-AI_Runtime_Process(&input);
-```
+![ONNX 모델 등록](./images/04.png)
 
-### 9. 빌드 및 동작 확인
+- Model Type: `ONNX`
+- Runtime: `STM32Cube.AI MCU runtime`
+- Model: 프로젝트에 포함된 `ai_model.onnx`
+- Compression: `None`
+- Optimization: `Balanced`
 
-- 프로젝트 `Clean`
-- 전체 프로젝트 `Build`
-- 확인 항목
-  - `network` 생성 및 초기화 성공
-  - `AI_ModelRun()` 반환값 `0`
-  - 입력/출력 크기 각각 4 bytes
-  - MSE 및 HI 출력 확인
-  - 정상/비정상 결과 출력 확인
-  - 온도 유효 시 RUL 출력 확인
-- `.ioc`에서 다시 코드를 생성한 경우 확인할 항목
-  - `AI_ModelRun()` USER CODE 유지 여부
-  - `main.c`의 AI 초기화 및 Runtime 호출 유지 여부
-  - `ai_config.h`의 임계값 및 양자화값 변경 여부
+`Browse...` 버튼을 선택하여 프로젝트의 `ai_model.onnx` 파일을 등록한다.
 
+모델 등록 후 `Analyze` 버튼을 선택한다.
+
+Analyze가 정상적으로 완료되면 모델의 RAM, Flash 및 Complexity 정보가 표시되는지 확인한다.
+
+본 프로젝트의 네트워크 이름은 `network`를 사용한다.
+
+
+### 7. 코드 생성
+
+모델 Analyze 완료 후 화면 오른쪽 상단의 `GENERATE CODE`를 선택하여
+X-CUBE-AI 설정 및 네트워크 코드를 프로젝트에 반영한다.
+
+코드 생성 후 다음 디렉터리 및 파일이 생성되었는지 확인한다.
+
+- `X-CUBE-AI/App/app_x-cube-ai.c`
+- `X-CUBE-AI/App/app_x-cube-ai.h`
+- `X-CUBE-AI/App/network.c`
+- `X-CUBE-AI/App/network.h`
+- `X-CUBE-AI/App/network_data.c`
+- `X-CUBE-AI/App/network_data.h`
+- `X-CUBE-AI/App/network_data_params.c/.h`
+- `Middlewares/ST/AI/`
+
+
+> [!WARNING]
+> STM32CubeMX에서 `GENERATE CODE`를 다시 실행하면 자동 생성 영역의 코드가
+> 삭제되거나 다시 생성될 수 있다.
+>
+> 사용자 작성 코드는 가능한 한
+> `/* USER CODE BEGIN ... */`와 `/* USER CODE END ... */`
+> 사이에 작성한다.
