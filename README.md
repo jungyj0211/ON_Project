@@ -59,6 +59,26 @@
 - 주의사항
   - `network.c`, `network_data.c` 등 자동 생성 파일 직접 수정 금지
 
+## X-CUBE-AI 및 ONNX 모델 적용
+
+- X-CUBE-AI 설치
+- ONNX 네트워크 등록
+- 코드 생성 및 main.c 연결
+- 문서: [X_CUBE_AI_SETUP.md](X_CUBE_AI_SETUP.md)
+- 주의사항
+  - X-CUBE-AI 및 CubeMX가 생성한 파일은 코드 재생성 시 덮어쓸 수 있음
+  - 자동 생성 파일의 사용자 코드는 반드시 `USER CODE BEGIN`과 `USER CODE END` 사이에 작성
+  - 해당 영역 밖에 작성한 코드는 `.ioc`의 `Generate Code` 실행 시 삭제될 수 있음
+
+```c
+/* USER CODE BEGIN 2 */
+int AI_ModelRun(const int8_t input[4], int8_t output[4])
+{
+    /* 사용자 AI 실행 코드 */
+}
+/* USER CODE END 2 */
+```
+
 ### RUL 및 실시간 실행
 
 - `ON_TEST_v1/Core/Inc/rul.h`
