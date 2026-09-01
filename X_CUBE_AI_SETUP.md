@@ -52,18 +52,7 @@ X-CUBE-AI가 설치되어 있지 않거나 버전 및 컴포넌트 설정을 확
 > 기존 네트워크가 없는 경우 삭제 과정 없이 바로 `Add network`를 선택한다.
 
 
-### 5. ONNX 모델 파일 확인
-
-프로젝트 Root 경로에 추론에 사용할 `ai_model.onnx` 파일이 포함되어 있는지 확인한다.
-
-![ONNX 모델 파일 위치](./images/05.png)
-
-본 프로젝트에서는 다음 모델 파일을 사용한다.
-
-`ai_model.onnx`
-
-
-### 6. ONNX 모델 등록 및 Analyze
+### 5. ONNX 모델 등록 및 Analyze
 
 추가한 Network에서 `Model inputs`를 다음과 같이 설정한다.
 
@@ -74,8 +63,10 @@ X-CUBE-AI가 설치되어 있지 않거나 버전 및 컴포넌트 설정을 확
 - Model: 프로젝트에 포함된 `ai_model.onnx`
 - Compression: `None`
 - Optimization: `Balanced`
+`Browse...` 버튼을 선택한 후 프로젝트에 포함된
+`ai_model.onnx` 파일을 등록한다.
 
-`Browse...` 버튼을 선택하여 프로젝트의 `ai_model.onnx` 파일을 등록한다.
+![ONNX 모델 파일 위치](./images/05.png)
 
 모델 등록 후 `Analyze` 버튼을 선택한다.
 
@@ -84,7 +75,7 @@ Analyze가 정상적으로 완료되면 모델의 RAM, Flash 및 Complexity 정�
 본 프로젝트의 네트워크 이름은 `network`를 사용한다.
 
 
-### 7. 코드 생성
+### 6. 코드 생성
 
 모델 Analyze 완료 후 화면 오른쪽 상단의 `GENERATE CODE`를 선택하여
 X-CUBE-AI 설정 및 네트워크 코드를 프로젝트에 반영한다.
