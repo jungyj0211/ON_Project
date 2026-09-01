@@ -9,10 +9,9 @@
   - 정상/비정상 판정
   - 이상도 `HI` 계산
   - 온도 및 HI 기반 RUL(%) 계산
-- 실행 모드
-  - `1`: 실시간 정상/비정상 판정
-  - `2`: 실시간 정상/비정상 판정 + RUL(%)
-- 종료 입력: UART6의 `q` 또는 `Q`
+- 동작 방식
+  - 부팅 후 실시간 이상검출과 RUL 계산 자동 실행
+  - 측정 횟수 제한 없이 계속 실행
 
 ## AI 관련 추가 파일
 
@@ -71,11 +70,10 @@
   - RUL(%) 반환
 - `ON_TEST_v1/Core/Inc/ai_test.h`
   - 실시간 센서 데이터 구조체
-  - 실행 모드 관련 함수 선언
+  - 실시간 처리 함수 선언
 - `ON_TEST_v1/Core/Src/ai_test.c`
   - 실시간 AI 추론 호출
   - 정상/비정상 및 HI 출력
-  - RUL 모드 관리
   - 온도 유효성 확인
   - 1시간 단위 RUL 호출
 
@@ -90,15 +88,15 @@
 MX_X_CUBE_AI_Init();
 ```
 
-### 2. 실행 모드 초기화
+### 2. 실시간 추론 및 RUL 초기화
 
 ```c
-g_active_runtime_test = AI_Test_MenuSelect();
-AI_Test_LiveInference_Init(g_active_runtime_test == 2U);
+AI_Test_LiveInference_Init();
 ```
 
-- 인자 `false`: 실시간 정상/비정상 판정
-- 인자 `true`: 실시간 정상/비정상 판정 + RUL(%)
+- 메뉴 선택 없이 실시간 이상검출과 RUL 계산 시작
+- RUL 초기 표시값: `100%`
+- RUL 누적 주기 타이머 시작
 
 ### 3. AI 입력 구성
 
@@ -172,7 +170,7 @@ AI_Test_LiveInference_Process()
      -> MSE 계산
      -> HI 계산
      -> 정상/비정상 판정
-  -> RUL 모드: RUL_claculate()
+  -> RUL_claculate()
 ```
 
 ## AI 세부 설정
