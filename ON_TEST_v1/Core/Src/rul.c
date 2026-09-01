@@ -1,6 +1,7 @@
-#include "rul_calculation.h"
+#include "rul.h"
 
 #include <stdint.h>
+
 #include "ai_config.h"
 
 #define RUL_EWMA_ALPHA     (2.0f / 25.0f)
@@ -34,7 +35,7 @@ static float life_at_temperature(float temperature_c)
   return (life_hour < RUL_MIN_LIFE_HOUR) ? RUL_MIN_LIFE_HOUR : life_hour;
 }
 
-float RUL_claculate(float temperature_c, float hi)
+float RUL_Update(float temperature_c, float hi)
 {
   hi = clampf(hi, 0.0f, 1.0f);
 

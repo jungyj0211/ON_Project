@@ -1,89 +1,132 @@
 # ON_TEST_v1
 
-`ON_TEST_v1`은 STM32H562에서 센싱한 데이터를 이용해 AI 이상검출을 수행하고, 온도와 AI 이상도를 이용해 잔여수명(`RUL`)을 계산하는 프로젝트입니다.
+## 프로젝트 개요
 
-현재 실행 기능은 다음 두 가지입니다.
+- 대상 MCU: STM32H562RIT6
+- 기준 프로젝트: `ON_TEST_v1`
+- 주요 기능
+  - 실시간 AI 이상검출
+  - 정상/비정상 판정
+  - 이상도 `HI` 계산
+  - 온도 및 HI 기반 RUL(%) 계산
+- 동작 방식
+  - 부팅 후 실시간 이상검출과 RUL 계산 자동 실행
+  - 측정 횟수 제한 없이 계속 실행
 
-1. 실시간 정상/비정상 판정
-2. 실시간 정상/비정상 판정 + RUL(%)
+## AI 관련 추가 파일
 
-## AI 기능을 위해 추가된 파일
+### 설정 및 전처리
 
-### AI 설정과 추론
+- `ON_TEST_v1/Core/Inc/ai_config.h`
+  - AI 입력 및 출력 크기
+  - INT8 양자화 파라미터
+  - 정상/비정상 판정 임계값
+  - HI 계산 범위
+  - RUL 계산 주기
+- `ON_TEST_v1/Core/Inc/ai_minmax.h`
+  - Min-Max 정규화 함수 선언
+- `ON_TEST_v1/Core/Src/ai_minmax.c`
+  - 학습 데이터 Min/Max 값
+  - 입력값 정규화
+  - 정규화 결과의 `0.0~1.0` 제한
 
-| 파일 | 역할 |
-|---|---|
-| `ON_TEST_v1/Core/Inc/ai_config.h` | 입력 크기, 양자화 파라미터, 판정 임계값, HI 범위 설정 |
-| `ON_TEST_v1/Core/Inc/ai_minmax.h` | 입력 정규화 함수 선언 |
-| `ON_TEST_v1/Core/Src/ai_minmax.c` | 학습 데이터의 Min/Max 값과 Min-Max 정규화 구현 |
-| `ON_TEST_v1/Core/Inc/ai_inference.h` | AI 추론 함수와 결과 구조체 선언 |
-| `ON_TEST_v1/Core/Src/ai_inference.c` | 정규화, INT8 양자화, AI 실행, MSE·HI·정상/비정상 판정 |
+### AI 추론
 
-### AI 모델 실행
+- `ON_TEST_v1/Core/Inc/ai_inference.h`
+  - `AI_Result` 구조체
+  - AI 추론 함수 선언
+- `ON_TEST_v1/Core/Src/ai_inference.c`
+  - Min-Max 정규화 호출
+  - INT8 입력 양자화
+  - AI 모델 실행
+  - INT8 출력 역양자화
+  - 복원오차 MSE 계산
+  - HI 계산
+  - 정상/비정상 판정
 
-| 파일/폴더 | 역할 |
-|---|---|
-| `ON_TEST_v1/X-CUBE-AI/App/app_x-cube-ai.c` | AI 네트워크 초기화 및 INT8 모델 실행 래퍼 |
-| `ON_TEST_v1/X-CUBE-AI/App/app_x-cube-ai.h` | 초기화 함수와 `AI_ModelRun()` 선언 |
-| `ON_TEST_v1/X-CUBE-AI/App/network*.c/.h` | X-CUBE-AI에서 생성된 네트워크 및 Weight 코드 |
-| `ON_TEST_v1/Middlewares/ST/AI/` | X-CUBE-AI 실행 라이브러리와 헤더 |
+### AI 모델 및 런타임
 
-`network.c`, `network_data.c` 등 X-CUBE-AI 자동 생성 파일은 직접 수정하지 않습니다.
+- `ON_TEST_v1/X-CUBE-AI/App/app_x-cube-ai.c`
+  - AI 네트워크 초기화
+  - `AI_ModelRun()` 구현
+- `ON_TEST_v1/X-CUBE-AI/App/app_x-cube-ai.h`
+  - AI 초기화 및 실행 함수 선언
+- `ON_TEST_v1/X-CUBE-AI/App/network*.c/.h`
+  - X-CUBE-AI 생성 네트워크
+  - 모델 Weight 데이터
+- `ON_TEST_v1/Middlewares/ST/AI/`
+  - X-CUBE-AI 런타임 라이브러리 및 헤더
+- 주의사항
+  - `network.c`, `network_data.c` 등 자동 생성 파일 직접 수정 금지
 
-### RUL 계산과 실시간 실행
+### RUL 및 실시간 실행
 
-| 파일 | 역할 |
-|---|---|
-| `ON_TEST_v1/Core/Inc/rul_calculation.h` | RUL 계산 함수 선언 |
-| `ON_TEST_v1/Core/Src/rul_calculation.c` | 온도와 HI를 이용한 누적 손상도 및 RUL(%) 계산 |
-| `ON_TEST_v1/Core/Inc/ai_test.h` | 실시간 실행에 전달할 센서 구조체와 함수 선언 |
-| `ON_TEST_v1/Core/Src/ai_test.c` | 실시간 추론, 결과 출력, RUL 모드 및 1시간 호출 주기 관리 |
+- `ON_TEST_v1/Core/Inc/rul.h`
+  - RUL 계산 함수 선언
+- `ON_TEST_v1/Core/Src/rul.c`
+  - HI 평활화
+  - 온도별 기준 수명 계산
+  - 누적 손상도 계산
+  - RUL(%) 반환
+- `ON_TEST_v1/Core/Inc/ai_runtime.h`
+  - 실시간 센서 데이터 구조체
+  - 실시간 처리 함수 선언
+- `ON_TEST_v1/Core/Src/ai_runtime.c`
+  - 실시간 AI 추론 호출
+  - 정상/비정상 및 HI 출력
+  - 온도 유효성 확인
+  - 1시간 단위 RUL 호출
 
-## main.c 적용 방법
+## main.c 적용 구조
 
-AI 계산식은 `main.c`에 직접 구현하지 않고 별도 C 파일의 함수를 호출하도록 구성되어 있습니다.
+### 1. AI 초기화
 
-### 1. AI 네트워크 초기화
-
-주변장치 초기화가 끝난 후 부팅 시 한 번 호출합니다.
+- 호출 위치: 주변장치 초기화 이후
+- 호출 횟수: 부팅 시 1회
 
 ```c
 MX_X_CUBE_AI_Init();
 ```
 
-### 2. 실행 모드 초기화
-
-메뉴에서 선택한 값에 따라 일반 실시간 추론 또는 RUL 모드를 시작합니다.
+### 2. 실시간 추론 및 RUL 초기화
 
 ```c
-g_active_runtime_test = AI_Test_MenuSelect();
-AI_Test_LiveInference_Init(g_active_runtime_test == 2U);
+AI_Runtime_Init();
 ```
 
-- `1`: 실시간 정상/비정상 판정
-- `2`: 실시간 정상/비정상 판정 + RUL(%)
+- 메뉴 선택 없이 실시간 이상검출과 RUL 계산 시작
+- RUL 초기 표시값: `100%`
+- RUL 누적 주기 타이머 시작
 
-### 3. AI 입력값 구성
-
-ADC와 FFT 센싱이 끝나면 다음 순서로 입력값 네 개를 구성합니다.
+### 3. AI 입력 구성
 
 ```c
 float model_input[4] = {
-    raw_freq_khz,  /* FFT 피크 주파수, kHz */
-    adc_pk,        /* FFT 피크 진폭, ADC count */
-    vin_v,         /* 출력 전압, V */
-    i_adc_v        /* 출력 전류, A */
+    raw_freq_khz,
+    adc_pk,
+    vin_v,
+    i_adc_v
 };
 ```
 
-입력 순서와 단위가 학습 데이터와 다르면 정상적인 결과가 나오지 않으므로 반드시 유지해야 합니다.
+- 입력 순서
+  - `[0]`: FFT 피크 주파수
+  - `[1]`: FFT 피크 진폭
+  - `[2]`: 출력 전압
+  - `[3]`: 출력 전류
+- 입력 단위
+  - FFT 피크 주파수: `kHz`
+  - FFT 피크 진폭: `ADC count`
+  - 출력 전압: `V`
+  - 출력 전류: `A`
+- 필수 조건
+  - 입력 순서 변경 금지
+  - 입력 단위 변경 금지
 
-### 4. 실시간 추론 함수 호출
-
-센싱값과 온도를 `AI_TestSensorData`에 넣고 실시간 처리 함수를 호출합니다.
+### 4. 센서 데이터 전달
 
 ```c
-AI_TestSensorData sensor = {
+AI_RuntimeInput input = {
     .model_input = {
         model_input[0],
         model_input[1],
@@ -98,37 +141,51 @@ AI_TestSensorData sensor = {
     .temperature_valid = temp_valid
 };
 
-AI_Test_LiveInference_Process(&sensor);
+AI_Runtime_Process(&input);
 ```
 
-`AI_Test_LiveInference_Process()` 내부에서 다음 작업이 수행됩니다.
+- `main.c` 담당 작업
+  - ADC 센싱
+  - FFT 처리
+  - AI 입력 4개 구성
+  - 온도 및 온도 유효 여부 구성
+  - 실시간 처리 함수 호출
+- 별도 모듈 담당 작업
+  - 정규화
+  - 양자화 및 역양자화
+  - AI 모델 추론
+  - MSE 및 HI 계산
+  - 정상/비정상 판정
+  - RUL 계산
+
+## AI 처리 순서
 
 ```text
-AI_infer()
-  -> 입력 정규화
-  -> INT8 양자화
-  -> 모델 추론
-  -> 복원오차(MSE) 계산
-  -> HI 계산
-  -> 정상/비정상 판정
-  -> RUL 모드인 경우 RUL_claculate() 호출
+AI_Runtime_Process()
+  -> AI_infer()
+     -> ai_minmax_scale()
+     -> ae_quantize_in_vec()
+     -> AI_ModelRun()
+     -> ae_dequantize_out_vec()
+     -> MSE 계산
+     -> HI 계산
+     -> 정상/비정상 판정
+  -> RUL_Update()
 ```
-
-즉, `main.c`에서는 센서값을 준비해 구조체에 넣고 함수만 호출하면 됩니다.
 
 ## AI 세부 설정
 
-설정 위치는 `ON_TEST_v1/Core/Inc/ai_config.h`입니다.
+### 모델 입출력 크기
 
-### 모델 입출력
+- 설정 파일: `ON_TEST_v1/Core/Inc/ai_config.h`
+- 입력: 4개
+- 출력: 4개
 
 ```c
 #define AE_IN_DIM  (4)
 #define AE_OUT_DIM (4)
 #define AE_COLS    (4)
 ```
-
-오토인코더 모델은 네 개의 값을 입력받고 네 개의 복원값을 출력합니다.
 
 ### INT8 양자화 설정
 
@@ -139,9 +196,10 @@ AI_infer()
 #define AE_OUT_ZERO_POINT (-128)
 ```
 
-현재 생성된 INT8 모델에 맞춘 값이므로 모델을 변경하지 않는 한 수정하지 않습니다.
+- 현재 INT8 모델 전용 설정
+- 모델 미변경 시 수정 금지
 
-### 정상/비정상 임계값과 HI 범위
+### 정상/비정상 판정 설정
 
 ```c
 #define AE_THRESH  (0.011325965f)
@@ -149,29 +207,26 @@ AI_infer()
 #define AE_HI_HIGH (0.000475430f)
 ```
 
-- `AE_THRESH`: MSE가 이 값 이상이면 비정상으로 판정
-- `AE_HI_LOW`: HI가 `0.0`이 되는 MSE 기준
-- `AE_HI_HIGH`: HI가 `1.0`이 되는 MSE 기준
-
-정상/비정상 판정식:
-
-```c
-is_anomaly = (reconstruction_error >= AE_THRESH) ? 1U : 0U;
-```
-
-HI 계산식:
+- `AE_THRESH`
+  - MSE 기반 정상/비정상 판정 임계값
+  - `MSE >= AE_THRESH`: 비정상
+  - `MSE < AE_THRESH`: 정상
+- `AE_HI_LOW`
+  - HI `0.0` 기준 MSE
+- `AE_HI_HIGH`
+  - HI `1.0` 기준 MSE
+- 현재 모델 및 성능평가 기준값
+- 세 값 모두 변경 금지
 
 ```text
 HI = clamp((MSE - AE_HI_LOW) / (AE_HI_HIGH - AE_HI_LOW), 0, 1)
 ```
 
-위 세 값은 현재 모델의 성능평가 결과에 맞춘 값이므로 변경하지 않습니다.
+### Min-Max 정규화 설정
 
-### Min-Max 정규화 범위
+- 설정 파일: `ON_TEST_v1/Core/Src/ai_minmax.c`
 
-설정 위치는 `ON_TEST_v1/Core/Src/ai_minmax.c`입니다.
-
-| 입력 순서 | 입력값 | Min | Max |
+| 순서 | 입력 | Min | Max |
 |---:|---|---:|---:|
 | 0 | FFT 피크 주파수(kHz) | 80.078125 | 110.937507629 |
 | 1 | FFT 피크 진폭(ADC count) | 0.712206006 | 11.872964859 |
@@ -182,14 +237,49 @@ HI = clamp((MSE - AE_HI_LOW) / (AE_HI_HIGH - AE_HI_LOW), 0, 1)
 x_scaled = (x - min) / (max - min)
 ```
 
-정규화 결과는 `0.0~1.0` 범위로 제한됩니다. 이 값도 현재 모델의 학습 데이터에 맞춘 값이므로 변경하지 않습니다.
+- 정규화 결과 범위: `0.0~1.0`
+- 현재 학습 데이터 기준값
+- 모델 미변경 시 수정 금지
 
-### RUL 설정
+## RUL 설정
+
+### 계산 주기
 
 ```c
 #define RUL_CALC_INTERVAL_HOURS (1.0f)
 ```
 
-AI 추론은 실시간으로 계속 실행하며 RUL 손상도는 유효한 온도값을 사용해 실제 1시간마다 한 번 누적합니다.
+- AI 추론: 실시간 반복
+- RUL 손상도 누적: 1시간마다 1회
+- 온도값 무효 시 RUL 누적 보류
 
-현재 `cumulative_damage`, `hi_smooth`, `sample_count`는 RAM에만 저장됩니다. 전원이 꺼진 후에도 RUL 누적값을 유지하려면 이 상태들을 Flash에 저장하고 부팅 시 복원하는 기능이 추가로 필요합니다.
+### 계산 입력 및 출력
+
+```c
+float rul_percent = RUL_Update(temperature_c, result.hi);
+```
+
+- 입력
+  - 측정 온도: `temperature_c`
+  - AI 이상도: `result.hi`
+- 출력
+  - RUL: `0.0~100.0%`
+
+### 현재 저장 방식
+
+- RAM 저장 항목
+  - `cumulative_damage`
+  - `hi_smooth`
+  - `sample_count`
+- 전원 차단 시 누적값 초기화
+- 전원 재인가 후 누적 유지 기능 미구현
+
+### Flash 저장 필요사항
+
+- 수명 계산값은 디바이스가 꺼져도 이전 값 유지 필요
+- RUL 누적 상태의 Flash 메모리 저장 필요
+- 디바이스 부팅 시 Flash에 저장된 최신 상태 복원 필요
+- Flash 저장 시점에 대한 정책 필요
+  - 예: 1시간 단위 RUL 계산 직후 저장
+  - 예: G/W에서 디바이스 OFF 신호 수신 시 저장
+  - 예: 일정 수준 이상 RUL 값이 변경될 때 저장

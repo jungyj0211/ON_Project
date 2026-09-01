@@ -55,7 +55,7 @@
 #include "wisun_router.h"
 #include "light_event.h"
 #include "ai_inference.h"
-#include "ai_test.h"
+#include "ai_runtime.h"
 #include "ai_config.h"
 #include "network_data_params.h"
 
@@ -458,9 +458,6 @@ static uint8_t g_hann_inited = 0;
 
 static volatile uint8_t  g_ai_sample_ready = 0;
 static volatile float    g_ai_sample = 0.0f;
-/* 1: live anomaly detection, 2: live anomaly detection with RUL (%). */
-static uint8_t g_active_runtime_test = 0U;
-
 static uint16_t uart_fail_cnt   = 0;
 volatile uint32_t uid_ram[3];
 volatile uint8_t  ai_pending = 0;
@@ -517,12 +514,6 @@ static uint16_t prev_dawn = 0xFFFF;
 static uint16_t prev_dusk = 0xFFFF;
 
 volatile uint8_t g_adc_kick = 0;
-/*static uint32_t ai_test_start = 0;
-static uint8_t  ai_test_done  = 0;
-
-static uint32_t ai_last_tick = 0;
-static float ai_v = -1.0f;
-static float ai_dv = 0.02f;*/
 
 /* USER CODE END PV */
 
@@ -829,12 +820,6 @@ static inline uint16_t xorshift16(uint16_t x){
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	if (huart->Instance == USART6)
 	    {
-	        if (AI_Test_LiveInference_HandleRxByte(rxByte))
-	        {
-	            HAL_UART_Receive_IT(&huart6, &rxByte, 1);
-	            return;
-	        }
-
 	        if (pc_rx_index < RX_BUFFER_SIZE - 1)
 	        {
 	            pc_rx_buffer[pc_rx_index++] = rxByte;
@@ -3099,8 +3084,7 @@ int main(void)
                       (uint16_t)(sizeof(ai_init_done) - 1U), 1000U);
   }
 
-  g_active_runtime_test = AI_Test_MenuSelect();
-  AI_Test_LiveInference_Init(g_active_runtime_test == 2U);
+  AI_Runtime_Init();
 
 #if COMMUNICATION_RUNTIME_ENABLE
   HAL_UART_Receive_IT(&huart1, &rxByte1, 1);
@@ -3249,21 +3233,6 @@ int main(void)
 	  uint32_t now = HAL_GetTick();
 #if SENSOR_ONLY_TEST_MODE
 	  static uint32_t sensor_test_tick = 0u;
-
-	  if (AI_Test_LiveInference_IsDone())
-	  {
-	      HAL_ADC_Stop_DMA(&hadc1);
-	      HAL_TIM_Base_Stop(&htim6);
-	      ultra_sampling_paused = true;
-	      (void)HAL_UART_AbortReceive(&huart6);
-
-	      g_active_runtime_test = AI_Test_MenuSelect();
-	      AI_Test_LiveInference_Init(g_active_runtime_test == 2U);
-	      (void)HAL_UART_Receive_IT(&huart6, &rxByte, 1U);
-	      Ultra_StartDmaFrame();
-	      sensor_test_tick = HAL_GetTick();
-	      continue;
-	  }
 
 	  if ((uint32_t)(now - sensor_test_tick) >= SENSOR_TEST_INTERVAL_MS)
 	  {
@@ -5160,7 +5129,7 @@ void Debug_Print_FFT_Peak(void)
             /* Only a sensor set with a valid FFT peak is used as one
              * real-time AI input. */
             if (found) {
-                AI_TestSensorData test_sensor = {
+                AI_RuntimeInput ai_input = {
                     .model_input = {
                         model_input[0],
                         model_input[1],
@@ -5174,7 +5143,7 @@ void Debug_Print_FFT_Peak(void)
                     .temperature_c = temp_c,
                     .temperature_valid = temp_valid
                 };
-                AI_Test_LiveInference_Process(&test_sensor);
+                AI_Runtime_Process(&ai_input);
             }
             len = 0;
 #endif
